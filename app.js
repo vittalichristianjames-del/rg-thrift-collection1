@@ -501,6 +501,48 @@ async function verifyAdminButtonAccess() {
     }
   }
 }
+function orderEmailTemplate(order) {
+  const itemList = order.products.map(product =>
+    `- ${product.title}${product.quantity > 1 ? ` x ${product.quantity}` : ""}`
+  ).join("\n");
+  const details = `Order: ${order.id}\nItems:\n${itemList}\nTotal: ${money(order.total)}`;
+  let title = "Order received";
+  let message = `Thank you for your order! We’ve received it and will prepare your one-of-a-kind pieces.\n\n${details}`;
+
+  if (order.status === "Payment review" && order.payment === "GCash") {
+    title = "GCash payment received";
+    message = `We received your GCash payment receipt and will review it shortly. We’ll update you once your payment has been verified.\n\n${details}`;
+  } else if (order.status === "Pending COD") {
+    title = "Order received";
+    message = `Thank you for your cash-on-delivery order! We’ve received it and will prepare your items. Payment is due when your order arrives.\n\n${details}`;
+  } else if (order.status === "Paid") {
+    title = order.payment === "GCash" ? "GCash payment verified" : "Payment confirmed";
+    message = order.payment === "GCash"
+      ? `Your GCash payment has been verified. Thank you! We’ll prepare your order next.\n\n${details}`
+      : `Your payment has been confirmed. Thank you for shopping with us!\n\n${details}`;
+  } else if (order.status === "Processing") {
+    title = "Your order is being prepared";
+    message = `Your order is now being prepared. We’ll let you know when it’s on its way.\n\n${details}`;
+  } else if (order.status === "Shipped") {
+    title = "Your order is on its way";
+    message = `Good news—your order is on its way for delivery. Thank you for your patience!\n\n${details}`;
+  } else if (order.status === "Delivered") {
+    title = "Your order has been delivered";
+    message = `Your order has been marked as delivered. We hope you love your find—thank you for giving it a second life!\n\n${details}`;
+  } else if (order.status === "Cancelled") {
+    title = "Order cancelled";
+    message = `Your order has been cancelled. If you have questions, reply to this email and we’ll be happy to help.\n\n${details}`;
+  } else if (order.status === "Rejected") {
+    title = "Payment needs attention";
+    message = `We couldn’t verify the payment for your order. Please reply to this email so we can help you with the next steps.\n\n${details}`;
+  }
+
+  return {
+    label: title,
+    subject: `${title} · RG Thrift Collection order ${order.id}`,
+    body: `Hi ${order.name},\n\n${message}\n\nWarmly,\nRG Thrift Collection`
+  };
+}
 async function renderAdmin() {
   if (!supabase) {
     updateAdminButton(false);
@@ -541,7 +583,7 @@ async function renderAdmin() {
   }
   const pending = state.orders.filter(order => ["Payment review", "Pending COD"].includes(order.status)).length;
   state.orders.sort((a, b) => new Date(b.placedAt) - new Date(a.placedAt));
-  $("#adminPanel").innerHTML = `<header class="admin-top"><div><span class="eyebrow muted-eyebrow">REWEAR · STORE DESK</span><h2>Good Day, shopkeeper.</h2></div><div class="admin-top-actions"><button class="button button-outline" id="adminBack">← Back to shop</button></div></header><div class="admin-content"><div class="admin-stats"><div class="stat-card"><span>AVAILABLE PIECES</span><strong>${state.products.filter(product => inventoryStatus(product) === "available").length}</strong></div><div class="stat-card"><span>ORDERS TO CHECK</span><strong>${pending}</strong></div><div class="stat-card"><span>ORDERS TOTAL</span><strong>${state.orders.length}</strong></div></div><div class="admin-columns"><section><div class="admin-section-title"><h3>The rack</h3><span class="eyebrow muted-eyebrow">INVENTORY · ${state.products.length} ITEMS</span></div></section><form class="admin-form" id="productForm"><h3>${state.editId ? "Edit this piece" : "Add a good find"}</h3><label>PIECE NAME<input name="title" required placeholder="The Sunday Shirt" /></label><label>CATEGORY<select name="category"><option>Tops</option><option>Bottoms</option><option>Outerwear</option><option>Dresses</option></select></label><label>PRICE (₱)<input name="price" type="number" min="1" required placeholder="650" /></label><label>SIZE<input name="size" required placeholder="M" /></label><label>PHOTO URL<input name="image" type="url" required placeholder="https://..." /></label><label>CONDITION<input name="condition" required placeholder="Excellent" /></label><label><textarea name="measurements" required placeholder="Chest width: 20 in&#10;Length: 24 in&#10;Shoulder width: 17 in&#10;Inseam: 28 in"></textarea></label><button class="button button-dark" type="submit">${state.editId ? "Save piece" : "Add to the rack"} <span>→</span></button>${state.editId ? `<button class="text-link" type="button" id="cancelEdit" style="margin:12px 0 0">Cancel edit</button>` : ""}</form></div><section class="admin-order-list"><div class="admin-section-title"><h3>Customer Orders</h3><span class="eyebrow muted-eyebrow">PAYMENTS · FULFILLMENT · DELIVERY</span></div>${state.orders.length ? state.orders.map(order => `<div class="admin-order"><div class="order-info"><strong>${escapeHTML(order.id)} · ${escapeHTML(order.products.map(p => p.title).join(", "))}</strong><span>${escapeHTML(order.name)} · ${escapeHTML(order.payment)} · ${money(order.total)}${order.reference ? ` · Ref ${escapeHTML(order.reference)}` : ""}</span>${order.payment === "GCash" ? `<span><a class="admin-proof" href="#" data-proof="${order.databaseId || order.id}">View receipt</a></span>` : ""}</div><select data-order-status="${order.databaseId || order.id}">${["Payment review", "Pending COD", "Paid", "Processing", "Shipped", "Delivered", "Cancelled", "Rejected"].map(status => `<option ${order.status === status ? "selected" : ""}>${status}</option>`).join("")}</select><input aria-label="Courier and tracking number" placeholder="Courier / tracking no." data-tracking="${order.databaseId || order.id}" value="${escapeHTML(order.tracking || "")}" /><input aria-label="Delivery ETA" placeholder="ETA e.g. Oct 30" data-eta="${order.databaseId || order.id}" value="${escapeHTML(order.eta || "")}" /></div>`).join("") : `<div class="no-orders">No orders yet. The good finds are waiting.</div>`}</section></div>`;
+  $("#adminPanel").innerHTML = `<header class="admin-top"><div><span class="eyebrow muted-eyebrow">REWEAR · STORE DESK</span><h2>Good Day, shopkeeper.</h2></div><div class="admin-top-actions"><button class="button button-outline" id="adminBack">← Back to shop</button></div></header><div class="admin-content"><div class="admin-stats"><div class="stat-card"><span>AVAILABLE PIECES</span><strong>${state.products.filter(product => inventoryStatus(product) === "available").length}</strong></div><div class="stat-card"><span>ORDERS TO CHECK</span><strong>${pending}</strong></div><div class="stat-card"><span>ORDERS TOTAL</span><strong>${state.orders.length}</strong></div></div><div class="admin-columns"><section><div class="admin-section-title"><h3>The rack</h3><span class="eyebrow muted-eyebrow">INVENTORY · ${state.products.length} ITEMS</span></div></section><form class="admin-form" id="productForm"><h3>${state.editId ? "Edit this piece" : "Add a good find"}</h3><label>PIECE NAME<input name="title" required placeholder="The Sunday Shirt" /></label><label>CATEGORY<select name="category"><option>Tops</option><option>Bottoms</option><option>Outerwear</option><option>Dresses</option></select></label><label>PRICE (₱)<input name="price" type="number" min="1" required placeholder="650" /></label><label>SIZE<input name="size" required placeholder="M" /></label><label>PHOTO URL<input name="image" type="url" required placeholder="https://..." /></label><label>CONDITION<input name="condition" required placeholder="Excellent" /></label><label><textarea name="measurements" required placeholder="Chest width: 20 in&#10;Length: 24 in&#10;Shoulder width: 17 in&#10;Inseam: 28 in"></textarea></label><button class="button button-dark" type="submit">${state.editId ? "Save piece" : "Add to the rack"} <span>→</span></button>${state.editId ? `<button class="text-link" type="button" id="cancelEdit" style="margin:12px 0 0">Cancel edit</button>` : ""}</form></div><section class="admin-order-list"><div class="admin-section-title"><h3>Customer Orders</h3><span class="eyebrow muted-eyebrow">PAYMENTS · FULFILLMENT · DELIVERY</span></div>${state.orders.length ? state.orders.map(order => `<div class="admin-order"><div class="order-info"><strong>${escapeHTML(order.id)} · ${escapeHTML(order.products.map(p => p.title).join(", "))}</strong><span>${escapeHTML(order.name)} · ${escapeHTML(order.payment)} · ${money(order.total)}${order.reference ? ` · Ref ${escapeHTML(order.reference)}` : ""}</span>${order.payment === "GCash" ? `<span><a class="admin-proof" href="#" data-proof="${order.databaseId || order.id}">View receipt</a></span>` : ""}</div><select data-order-status="${order.databaseId || order.id}">${["Payment review", "Pending COD", "Paid", "Processing", "Shipped", "Delivered", "Cancelled", "Rejected"].map(status => `<option ${order.status === status ? "selected" : ""}>${status}</option>`).join("")}</select></div>`).join("") : `<div class="no-orders">No orders yet. The good finds are waiting.</div>`}</section></div>`;
   $(".admin-columns > section:first-child").innerHTML = renderAdminInventory();
   $(".admin-order-list .admin-section-title .eyebrow").textContent = "NEWEST CHECKOUT FIRST · PHILIPPINE TIME";
   document.querySelectorAll(".admin-order").forEach((card, index) => {
@@ -602,21 +644,21 @@ async function renderAdmin() {
     const customerSection = makeOrderSection("Customer", "admin-order-customer", [order.name, order.email, order.phone]);
     if (order.email) {
       const emailButton = document.createElement("a");
-      const subject = `About your RG Thrift Collection order ${order.id}`;
-      const body = `Hi ${order.name},\n\nI'm contacting you about your order ${order.id}.\n\nRG Thrift Collection`;
+      const email = orderEmailTemplate(order);
       const gmailComposeUrl = new URL("https://mail.google.com/mail/");
       gmailComposeUrl.search = new URLSearchParams({
+        authuser: "rgthriftcollection@gmail.com",
         view: "cm",
         fs: "1",
         to: order.email,
-        su: subject,
-        body
+        su: email.subject,
+        body: email.body
       }).toString();
       emailButton.className = "admin-email-button";
       emailButton.href = gmailComposeUrl.toString();
       emailButton.target = "_blank";
       emailButton.rel = "noopener noreferrer";
-      emailButton.textContent = "Email customer";
+      emailButton.textContent = `Draft: ${email.label}`;
       customerSection.append(emailButton);
     }
     info.append(
@@ -639,7 +681,7 @@ async function renderAdmin() {
     const controls = document.createElement("section");
     controls.className = "admin-order-controls";
     const controlsHeading = document.createElement("h4");
-    controlsHeading.textContent = "Order status and delivery";
+    controlsHeading.textContent = "Order status";
     controls.append(controlsHeading);
     const controlsGrid = document.createElement("div");
     controlsGrid.className = "admin-order-control-grid";
@@ -658,17 +700,6 @@ async function renderAdmin() {
     logout.textContent = "Sign out";
     $(".admin-top-actions").prepend(logout);
     document.querySelectorAll("[data-proof]").forEach(link => { link.textContent = "View receipt"; });
-    document.querySelectorAll("[data-tracking]").forEach(input => {
-      const order = state.orders.find(item => (item.databaseId || item.id) === input.dataset.tracking);
-      const courier = document.createElement("input");
-      courier.type = "text";
-      courier.placeholder = "Courier";
-      courier.setAttribute("aria-label", "Courier");
-      courier.dataset.courier = input.dataset.tracking;
-      courier.value = order?.courier || "";
-      courier.dataset.savedValue = courier.value;
-      input.before(courier);
-    });
     const imageUrl = $("#productForm [name='image']");
     imageUrl.required = false;
     const photoLabel = document.createElement("label");
@@ -1066,60 +1097,6 @@ $("#adminPanel").addEventListener("change", async event => {
   }
   const status = event.target.closest("[data-order-status]");
   if (status) await updateOrderStatus(status.dataset.orderStatus, status.value);
-  const tracking = event.target.closest("[data-tracking]");
-  if (tracking) {
-    const order = state.orders.find(item => (item.databaseId || item.id) === tracking.dataset.tracking);
-    if (order && supabase) {
-      try {
-        await apiRequest(`/admin/orders/${encodeURIComponent(order.databaseId)}`, {
-          method: "PATCH",
-          auth: true,
-          body: JSON.stringify({ tracking: tracking.value })
-        });
-      } catch (error) {
-        return showToast(error.message);
-      }
-      await loadAdminOrders();
-    } else if (order) { order.tracking = tracking.value; persist(); }
-    showToast("Tracking details saved.");
-  }
-  const eta = event.target.closest("[data-eta]");
-  if (eta) {
-    const order = state.orders.find(item => (item.databaseId || item.id) === eta.dataset.eta);
-    if (order && supabase) {
-      try {
-        await apiRequest(`/admin/orders/${encodeURIComponent(order.databaseId)}`, {
-          method: "PATCH",
-          auth: true,
-          body: JSON.stringify({ eta: eta.value })
-        });
-      } catch (error) {
-        return showToast(error.message);
-      }
-      await loadAdminOrders();
-    } else if (order) { order.eta = eta.value; persist(); }
-    showToast("Delivery ETA saved.");
-  }
-  const courier = event.target.closest("[data-courier]");
-  if (courier) {
-    const order = state.orders.find(item => (item.databaseId || item.id) === courier.dataset.courier);
-    if (order && supabase) {
-      try {
-        await apiRequest(`/admin/orders/${encodeURIComponent(order.databaseId)}`, {
-          method: "PATCH",
-          auth: true,
-          body: JSON.stringify({ courier: courier.value })
-        });
-      } catch (error) {
-        return showToast(error.message);
-      }
-      await loadAdminOrders();
-    } else if (order) {
-      order.courier = courier.value;
-      persist();
-    }
-    showToast("Courier details saved.");
-  }
 });
 document.addEventListener("keydown", event => {
   const viewerOpen = !$("#productImageViewer").classList.contains("hidden");

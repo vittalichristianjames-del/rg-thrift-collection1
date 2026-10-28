@@ -143,10 +143,12 @@ load JavaScript modules reliably from a `file:` URL.
 - Cart items do not hold stock. Checkout atomically verifies and claims stock,
   so another customer may purchase a piece before checkout succeeds.
 - COD and manual GCash receipt review (JPEG/PNG up to 5 MB).
-- Admin-only payment receipt viewing, cancellation/restocking, order statuses,
-  courier, tracking number, and ETA.
+- Admin-only payment receipt viewing, cancellation/restocking, and order status
+  updates. Admins can open a status-specific Gmail draft to review and send
+  manually; no email is sent automatically.
 - Customer order lookup using the order number and checkout email.
-- Email notifications and online payment gateway processing are not included.
+- Automatic email notifications and online payment gateway processing are not
+  included.
 
 The local demo mode is not secure for admin use. Admin access is disabled until
 the Supabase backend is configured. Use HTTPS deployment URLs and keep Supabase
