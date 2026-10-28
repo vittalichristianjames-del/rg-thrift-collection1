@@ -32,7 +32,15 @@ No custom domain is required.
    confirmation. Customers register from **Sign in → Create an account** in
    the storefront. Supabase sends only the account-confirmation email; order
    notifications are not configured.
-5. Create and confirm the shop owner's account, then grant it admin access in
+5. To protect sign-in and account creation with Cloudflare Turnstile, create a Turnstile widget in
+   Cloudflare and allow the storefront hostname (also allow `localhost` for
+   local development). In Supabase, open **Authentication → Bot and Abuse
+   Protection**, enable CAPTCHA, choose **Cloudflare Turnstile**, and enter its
+   secret key. Put the widget's public site key in `turnstileSiteKey` in
+   `supabase-config.js`, then commit and deploy that change. Never put the
+   secret key in the repository. Sign-in and account creation stay disabled
+   until the security check is completed.
+6. Create and confirm the shop owner's account, then grant it admin access in
    the SQL Editor (replace the email):
 
    ```sql
@@ -44,11 +52,11 @@ No custom domain is required.
    `store_admins` only when you intentionally want it to use the separate
    Admin portal.
 
-6. In the Supabase project API settings, copy the project URL, the public
+7. In the Supabase project API settings, copy the project URL, the public
    publishable/anon key, and the secret service-role key. The publishable key
    goes in the frontend config. The service-role key goes only in Render's
    environment variables.
-7. Add your actual GCash QR image as `gcash-qr.jpg` beside `index.html`.
+8. Add your actual GCash QR image as `gcash-qr.jpg` beside `index.html`.
 
 ## 2. Put the code in GitHub
 

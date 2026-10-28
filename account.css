@@ -20,6 +20,9 @@
 .account-field input[readonly]{background:#f0eee8;color:#74766d}
 .account-field .optional{font-weight:400;letter-spacing:0}
 .account-form>.button{width:100%;margin-top:6px}
+.account-form>.button:disabled{opacity:.55;cursor:not-allowed}
+.turnstile-container{min-height:65px;margin-bottom:12px}
+.turnstile-container[role="alert"]{font-size:11px;line-height:1.6;color:#9b3827}
 .account-switch{justify-self:center;margin-top:18px}
 .account-message{font-size:11px;line-height:1.7;color:var(--muted)}
 .account-message.error{color:#9b3827}

@@ -22,12 +22,81 @@ const provinces = [
 const content = document.querySelector("#accountContent");
 const config = window.STORE_BACKEND_CONFIG || {};
 const apiBaseUrl = String(config.apiBaseUrl || "").replace(/\/+$/, "");
+const turnstileSiteKey = String(config.turnstileSiteKey || "").trim();
 const supabase = config.url && config.anonKey
   ? createClient(config.url, config.anonKey, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     })
   : null;
 const checkoutRequested = new URLSearchParams(window.location.search).get("checkout") === "1";
+let turnstileLoadPromise;
+let turnstileToken = "";
+
+function loadTurnstile() {
+  if (window.turnstile) return Promise.resolve(window.turnstile);
+  if (!turnstileLoadPromise) {
+    turnstileLoadPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        if (window.turnstile) resolve(window.turnstile);
+        else {
+          turnstileLoadPromise = null;
+          reject(new Error("Turnstile could not be initialized. Please reload and try again."));
+        }
+      };
+      script.onerror = () => {
+        turnstileLoadPromise = null;
+        reject(new Error("Could not load sign-in security check. Check your connection and try again."));
+      };
+      document.head.append(script);
+    });
+  }
+  return turnstileLoadPromise;
+}
+
+async function setupTurnstile() {
+  const container = content.querySelector("#turnstileWidget");
+  if (!container) return;
+  const submit = content.querySelector('#authForm [type="submit"]');
+  if (!turnstileSiteKey) {
+    container.textContent = "Sign-in protection is not configured yet. Please contact the store owner.";
+    container.setAttribute("role", "alert");
+    submit.disabled = true;
+    return;
+  }
+  submit.disabled = true;
+  try {
+    const turnstile = await loadTurnstile();
+    if (!container.isConnected) return;
+    turnstileWidgetId = turnstile.render(container, {
+      sitekey: turnstileSiteKey,
+      callback(token) {
+        if (!container.isConnected) return;
+        turnstileToken = token;
+        content.querySelector('#authForm [type="submit"]').disabled = false;
+      },
+      "expired-callback"() {
+        if (!container.isConnected) return;
+        turnstileToken = "";
+        content.querySelector('#authForm [type="submit"]').disabled = true;
+      },
+      "error-callback"() {
+        if (!container.isConnected) return;
+        turnstileToken = "";
+        container.textContent = "The security check failed to load. Please reload and try again.";
+        content.querySelector('#authForm [type="submit"]').disabled = true;
+      }
+    });
+  } catch (error) {
+    if (!container.isConnected) return;
+    container.textContent = error.message;
+    container.setAttribute("role", "alert");
+    submit.disabled = true;
+  }
+}
 
 function escapeHTML(value) {
   return String(value ?? "").replace(/[&<>"']/g, char =>
@@ -68,6 +137,7 @@ function profileFromForm(form) {
 
 function renderAuth(mode = "login", message = "") {
   const signup = mode === "signup";
+  turnstileToken = "";
   content.innerHTML = `<form class="account-form" id="authForm" data-mode="${signup ? "signup" : "login"}">
     <span class="eyebrow muted-eyebrow account-field-wide">CUSTOMER ACCOUNT</span>
     <h2>${signup ? "Create your account." : "Welcome back."}</h2>
@@ -79,9 +149,11 @@ function renderAuth(mode = "login", message = "") {
     <label class="account-field account-field-wide">EMAIL ADDRESS<input name="email" type="email" autocomplete="email" required maxlength="254" /></label>
     <label class="account-field account-field-wide">PASSWORD<input name="password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" required minlength="8" /></label>
     ${signup ? `<label class="account-field account-field-wide">CONFIRM PASSWORD<input name="confirmPassword" type="password" autocomplete="new-password" required minlength="8" /></label>` : ""}
-    <button class="button button-dark" type="submit">${signup ? "Create account" : "Sign in"} <span>→</span></button>
+    <div class="turnstile-container account-field-wide" id="turnstileWidget"></div>
+    <button class="button button-dark" type="submit" disabled>${signup ? "Create account" : "Sign in"} <span>→</span></button>
     <button class="text-link account-switch" type="button" data-mode="${signup ? "login" : "signup"}">${signup ? "Already have an account? Sign in" : "New here? Create an account"}</button>
   </form>`;
+  setupTurnstile();
 }
 
 async function apiRequest(route) {
@@ -227,15 +299,18 @@ content.addEventListener("submit", async event => {
         throw new Error("Passwords do not match.");
       }
       if (form.dataset.mode === "signup") {
+        if (!turnstileToken) throw new Error("Complete the security check before creating an account.");
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
+            captchaToken: turnstileToken,
             data: profileFromForm(form),
             ...(checkoutRequested ? { emailRedirectTo: `${window.location.origin}/account.html?checkout=1` } : {})
           }
         });
         if (error) throw error;
+        turnstileToken = "";
         if (!data.session) {
           content.innerHTML = `<div class="account-confirmation"><h2>Confirm your account.</h2><p>Use the confirmation link sent to your email, then sign in to continue to checkout. Your cart will be saved.</p><button class="button button-dark" type="button" id="continueToSignIn">Continue to sign in <span>→</span></button></div>`;
           return;
@@ -246,8 +321,14 @@ content.addEventListener("submit", async event => {
         }
         await renderAccount(data.user || data.session.user);
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (!turnstileToken) throw new Error("Complete the security check before signing in.");
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+          options: { captchaToken: turnstileToken }
+        });
         if (error) throw error;
+        turnstileToken = "";
         await continueAfterSignIn(data.user);
       }
       return;
