@@ -71,7 +71,7 @@ async function setupTurnstile() {
   try {
     const turnstile = await loadTurnstile();
     if (!container.isConnected) return;
-    turnstileWidgetId = turnstile.render(container, {
+    turnstile.render(container, {
       sitekey: turnstileSiteKey,
       callback(token) {
         if (!container.isConnected) return;
