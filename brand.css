@@ -95,8 +95,8 @@
 
 .product-image-viewer-photo {
   display: block;
-  max-width: 100%;
-  max-height: 100%;
+  max-width: min(100%, 900px);
+  max-height: 80vh;
   object-fit: contain;
   cursor: zoom-out;
 }
@@ -800,6 +800,11 @@ textarea:focus-visible {
 
   .product-image-viewer {
     padding: 56px 52px;
+  }
+
+  .product-image-viewer-photo {
+    max-width: 100%;
+    max-height: 100%;
   }
 
   .product-image-viewer-arrow {
