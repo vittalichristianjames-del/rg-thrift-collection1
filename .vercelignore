@@ -1,0 +1,11 @@
+server.js
+package.json
+package-lock.json
+render.yaml
+.env
+.env.*
+!.env.example
+node_modules/
+supabase/
+SETUP.md
+_headers

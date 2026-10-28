@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f4ef" />
+    <meta name="description" content="Shop one-of-a-kind pre-loved clothing at RG Thrift Collection." />
+    <title>Shop — RG Thrift Collection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="brand.css?v=carousel-overlay" />
+    <script src="supabase-config.js"></script>
+    <script type="module" src="app.js"></script>
+  </head>
+  <body class="shop-page">
+    <div class="announcement">A little less new, a lot more you. <a href="#shop">Browse the collection <span aria-hidden="true">↗</span></a></div>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="RG Thrift Collection home"><span class="brand-mark">RG</span><span class="brand-name">THRIFT<br />COLLECTION</span></a>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="shop.html" aria-current="page">Shop</a>
+      </nav>
+      <div class="header-actions">
+        <button class="icon-button order-link" id="ordersButton" aria-label="View your orders" title="Your orders"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l1 12H4L5 8Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg></button>
+        <button class="account-link" id="accountButton">Sign in</button>
+        <button class="cart-button" id="cartButton"><span>Cart</span><span class="cart-count" id="cartCount">0</span></button>
+        <button class="admin-link" id="adminButton" hidden>Admin <span aria-hidden="true">↗</span></button>
+      </div>
+    </header>
+
+    <main>
+      <section class="shop-section section-wrap shop-page-section" id="shop">
+        <div class="section-heading">
+          <div><span class="eyebrow muted-eyebrow">ONE OF A KIND, ALWAYS</span><h1>Shop the collection<span class="heading-period">.</span></h1></div>
+          <a class="text-link" href="index.html">Back to home <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="shop-toolbar">
+          <div class="filter-list" id="categoryFilters" aria-label="Filter by category">
+            <button class="filter-chip active" data-category="All">All pieces <span id="allCount">06</span></button>
+            <button class="filter-chip" data-category="Tops">Tops</button>
+            <button class="filter-chip" data-category="Bottoms">Bottoms</button>
+            <button class="filter-chip" data-category="Outerwear">Outerwear</button>
+            <button class="filter-chip" data-category="Dresses">Dresses</button>
+          </div>
+          <label class="sort-control">SORT BY <select id="sortSelect"><option value="featured">Just found</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option></select></label>
+        </div>
+        <div class="product-grid" id="productGrid" aria-live="polite"></div>
+        <div class="empty-state hidden" id="emptyProducts">Nothing on this rack just yet. Check back soon.</div>
+        <div class="shop-footnote"><span>EVERY PIECE IS ONE OF A KIND</span><span>✳</span><span>IF IT'S GONE, IT'S GONE</span></div>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <a class="brand" href="index.html" aria-label="RG Thrift Collection home"><span class="brand-mark">RG</span><span class="brand-name">THRIFT<br />COLLECTION</span></a>
+      <div class="store-contact" aria-label="Store contact information">
+        <a href="tel:+639206774445">Call us: 0920 677 4445</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://www.facebook.com/profile.php?id=100089599620112" target="_blank" rel="noopener noreferrer">Facebook</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://maps.app.goo.gl/C9uCH6nZhK1cXXJQ8" target="_blank" rel="noopener noreferrer">Google Maps</a>
+      </div>
+      <span>© RG THRIFT COLLECTION 2026</span>
+    </footer>
+
+    <div class="overlay hidden" id="overlay"></div>
+    <aside class="drawer hidden" id="cartDrawer" aria-labelledby="cartTitle" aria-modal="true" role="dialog">
+      <div class="drawer-head"><div><span class="eyebrow muted-eyebrow">YOUR GOOD FINDS</span><h2 id="cartTitle">Your cart <span id="drawerCount">(0)</span></h2></div><button class="close-button" data-close aria-label="Close cart">×</button></div>
+      <div class="cart-items" id="cartItems"></div>
+      <div class="cart-empty" id="cartEmpty"><span>✳</span><p>It's a little empty in here.</p><button class="text-link" data-close>Find something good ↗</button></div>
+      <div class="cart-footer hidden" id="cartFooter"><div class="subtotal"><span>Subtotal</span><strong id="cartSubtotal">₱0</strong></div><p>Items are confirmed only when checkout succeeds. Shipping calculated at checkout.</p><button class="button button-dark full-width" id="checkoutButton">Continue to checkout <span>→</span></button><small>UNIQUE PIECES. NO SECOND CHANCES.</small></div>
+    </aside>
+    <section class="modal hidden" id="productModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></section>
+    <section class="modal checkout-modal hidden" id="checkoutModal" role="dialog" aria-modal="true" aria-labelledby="checkoutTitle"></section>
+    <section class="modal hidden" id="ordersModal" role="dialog" aria-modal="true" aria-labelledby="ordersTitle"></section>
+    <section class="admin-panel hidden" id="adminPanel" aria-label="Store admin portal"></section>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
