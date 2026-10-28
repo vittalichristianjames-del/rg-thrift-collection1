@@ -285,8 +285,8 @@ function openProduct(id) {
   const unavailable = soldOut || inCart;
   const availabilityLabel = soldOut ? "Sold out" : "Already in your cart";
   const productPhotos = product.back_image
-    ? `<div class="modal-product-carousel" data-image-index="0" data-front-image="${escapeHTML(product.image)}" data-back-image="${escapeHTML(product.back_image)}"><img class="modal-product-image" data-carousel-image src="${escapeHTML(product.image)}" alt="${escapeHTML(product.title)} — front" /><span class="modal-product-image-label" data-image-label aria-live="polite">FRONT</span><div class="product-image-controls"><button class="product-image-arrow product-image-previous" type="button" data-image-direction="previous" aria-label="Show front photo">‹</button><button class="product-image-arrow product-image-next" type="button" data-image-direction="next" aria-label="Show back photo">›</button></div></div>`
-    : `<img class="modal-product-image" src="${escapeHTML(product.image)}" alt="${escapeHTML(product.title)}" />`;
+    ? `<div class="modal-product-carousel" data-image-index="0" data-front-image="${escapeHTML(product.image)}" data-back-image="${escapeHTML(product.back_image)}"><img class="modal-product-image" data-carousel-image data-zoom-image tabindex="0" role="button" aria-label="Enlarge front photo" src="${escapeHTML(product.image)}" alt="${escapeHTML(product.title)} — front" /><span class="modal-product-image-label" data-image-label aria-live="polite">FRONT</span><div class="product-image-controls"><button class="product-image-arrow product-image-previous" type="button" data-image-direction="previous" aria-label="Show front photo">‹</button><button class="product-image-arrow product-image-next" type="button" data-image-direction="next" aria-label="Show back photo">›</button></div></div>`
+    : `<img class="modal-product-image" data-zoom-image tabindex="0" role="button" aria-label="Enlarge product photo" src="${escapeHTML(product.image)}" alt="${escapeHTML(product.title)}" />`;
   $("#productModal").innerHTML = `<div class="product-modal-content">${productPhotos}<div class="modal-product-copy"><button class="close-button modal-close" data-close aria-label="Close details">×</button><span class="eyebrow muted-eyebrow">${escapeHTML(product.tag || product.condition)} · SIZE ${escapeHTML(product.size)}</span><h2 id="modalTitle">${escapeHTML(product.title)}</h2><div class="modal-price">${money(product.price)}</div><p class="modal-description">${escapeHTML(product.description)}</p><div class="measurement-title">MEASURED FLAT, BY HAND</div><div class="measurement-grid">${Object.entries(product.measurements || {}).map(([label, value]) => `<div>${escapeHTML(label)}<strong>${escapeHTML(value)}</strong></div>`).join("")}</div><button class="button button-dark modal-add" data-add="${product.id}" ${unavailable ? "disabled" : ""}>${unavailable ? availabilityLabel : "Add to cart"} <span>→</span></button></div></div>`;
   setDialog("productModal");
 }
@@ -303,6 +303,34 @@ function changeProductImage(direction) {
   carousel.querySelector(".product-image-previous").setAttribute("aria-label", `Show ${showingBack ? "front" : "back"} photo`);
   carousel.querySelector(".product-image-next").setAttribute("aria-label", `Show ${showingBack ? "front" : "back"} photo`);
   carousel.dataset.imageIndex = String(nextIndex);
+  if (!$("#productImageViewer").classList.contains("hidden")) updateImageViewer(image, carousel.querySelector("[data-image-label]").textContent);
+}
+let zoomReturnFocus = null;
+function updateImageViewer(sourceImage, label = "") {
+  const viewer = $("#productImageViewer");
+  viewer.querySelector("[data-zoom-viewer-image]").src = sourceImage.src;
+  viewer.querySelector("[data-zoom-viewer-image]").alt = sourceImage.alt;
+  viewer.querySelector("[data-zoom-viewer-label]").textContent = label;
+}
+function openImageViewer(image) {
+  const viewer = $("#productImageViewer");
+  const carousel = image.closest(".modal-product-carousel");
+  zoomReturnFocus = image;
+  updateImageViewer(image, carousel?.querySelector("[data-image-label]").textContent || "");
+  viewer.querySelectorAll("[data-zoom-viewer-direction]").forEach(button => {
+    button.classList.toggle("hidden", !carousel);
+  });
+  $("#productModal").setAttribute("aria-modal", "false");
+  viewer.classList.remove("hidden");
+  viewer.querySelector("[data-close-image-viewer]").focus();
+}
+function closeImageViewer() {
+  const viewer = $("#productImageViewer");
+  if (viewer.classList.contains("hidden")) return;
+  viewer.classList.add("hidden");
+  $("#productModal").setAttribute("aria-modal", "true");
+  if (zoomReturnFocus?.isConnected) zoomReturnFocus.focus();
+  zoomReturnFocus = null;
 }
 function checkoutShipping() {
   const region = $("#destination")?.value || "metro";
@@ -764,6 +792,20 @@ document.body.addEventListener("click", event => {
     changeProductImage(imageDirection.dataset.imageDirection);
     return;
   }
+  if (event.target.closest("[data-close-image-viewer]") || event.target.id === "productImageViewer") {
+    closeImageViewer();
+    return;
+  }
+  const zoomDirection = event.target.closest("[data-zoom-viewer-direction]");
+  if (zoomDirection) {
+    changeProductImage(zoomDirection.dataset.zoomViewerDirection);
+    return;
+  }
+  const zoomImage = event.target.closest("[data-zoom-image]");
+  if (zoomImage) {
+    openImageViewer(zoomImage);
+    return;
+  }
   const add = event.target.closest("[data-add]");
   if (add && !$("#productGrid").contains(add)) { addToCart(add.dataset.add); setDialog("cartDrawer"); }
   const remove = event.target.closest("[data-remove]");
@@ -1079,7 +1121,25 @@ $("#adminPanel").addEventListener("change", async event => {
     showToast("Courier details saved.");
   }
 });
-document.addEventListener("keydown", event => { if (event.key === "Escape") setDialog(null); });
+document.addEventListener("keydown", event => {
+  const viewerOpen = !$("#productImageViewer").classList.contains("hidden");
+  if (viewerOpen && event.key === "Escape") {
+    event.stopPropagation();
+    closeImageViewer();
+    return;
+  }
+  if (viewerOpen && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+    event.preventDefault();
+    changeProductImage(event.key === "ArrowRight" ? "next" : "previous");
+    return;
+  }
+  if ((event.key === "Enter" || event.key === " ") && event.target.closest("[data-zoom-image]")) {
+    event.preventDefault();
+    openImageViewer(event.target.closest("[data-zoom-image]"));
+    return;
+  }
+  if (event.key === "Escape") setDialog(null);
+});
 async function initializeStore() {
   if (supabase) {
     try {

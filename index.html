@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="brand.css?v=carousel-overlay" />
+    <link rel="stylesheet" href="brand.css?v=image-viewer" />
     <script src="supabase-config.js"></script>
     <script type="module" src="app.js"></script>
   </head>
@@ -94,6 +94,13 @@
     </aside>
 
     <section class="modal hidden" id="productModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></section>
+    <div class="product-image-viewer hidden" id="productImageViewer" role="dialog" aria-modal="true" aria-label="Enlarged product photo">
+      <button class="product-image-viewer-close" type="button" data-close-image-viewer aria-label="Close enlarged photo">×</button>
+      <span class="product-image-viewer-label" data-zoom-viewer-label></span>
+      <img class="product-image-viewer-photo" data-zoom-viewer-image alt="" />
+      <button class="product-image-viewer-arrow product-image-viewer-previous" type="button" data-zoom-viewer-direction="previous" aria-label="Show previous product photo">‹</button>
+      <button class="product-image-viewer-arrow product-image-viewer-next" type="button" data-zoom-viewer-direction="next" aria-label="Show next product photo">›</button>
+    </div>
     <section class="modal checkout-modal hidden" id="checkoutModal" role="dialog" aria-modal="true" aria-labelledby="checkoutTitle"></section>
     <section class="modal hidden" id="ordersModal" role="dialog" aria-modal="true" aria-labelledby="ordersTitle"></section>
     <section class="admin-panel hidden" id="adminPanel" aria-label="Store admin portal"></section>
