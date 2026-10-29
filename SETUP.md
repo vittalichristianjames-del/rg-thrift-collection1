@@ -32,6 +32,11 @@ No custom domain is required.
    confirmation. Customers register from **Sign in → Create an account** in
    the storefront. Supabase sends only the account-confirmation email; order
    notifications are not configured.
+5. For password reset, add the storefront URL with `?recovery=1` to Supabase
+   **Authentication → URL Configuration → Allowed redirect URLs**, for example
+   `https://your-storefront.onrender.com/account.html?recovery=1` (and
+   `http://localhost:8765/account.html?recovery=1` for local development).
+   Without this, the reset link in the password-reset email will not work.
 5. To protect sign-in and account creation with Cloudflare Turnstile, create a Turnstile widget in
    Cloudflare and allow the storefront hostname (also allow `localhost` for
    local development). In Supabase, open **Authentication → Bot and Abuse

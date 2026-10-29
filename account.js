@@ -31,6 +31,7 @@ const supabase = config.url && config.anonKey
 const checkoutRequested = new URLSearchParams(window.location.search).get("checkout") === "1";
 let turnstileLoadPromise;
 let turnstileToken = "";
+let recoveryTokenHash = "";
 
 function loadTurnstile() {
   if (window.turnstile) return Promise.resolve(window.turnstile);
@@ -137,21 +138,66 @@ function profileFromForm(form) {
 
 function renderAuth(mode = "login", message = "") {
   const signup = mode === "signup";
+  const forgot = mode === "forgot-password";
+  const reset = mode === "reset-password";
   turnstileToken = "";
-  content.innerHTML = `<form class="account-form" id="authForm" data-mode="${signup ? "signup" : "login"}">
+
+  let heading;
+  let intro;
+  let fields;
+  let submitLabel;
+  let switchButton;
+  let extraLink;
+
+  if (signup) {
+    heading = "Create your account.";
+    intro = checkoutRequested
+      ? "Create an account or sign in to continue to checkout. Your cart will be saved."
+      : "Add your delivery details so they are ready when you find something good.";
+    fields = profileFields()
+      + `<label class="account-field account-field-wide">EMAIL ADDRESS<input name="email" type="email" autocomplete="email" required maxlength="254" /></label>`
+      + `<label class="account-field account-field-wide">PASSWORD<input name="password" type="password" autocomplete="new-password" required minlength="8" /></label>`
+      + `<label class="account-field account-field-wide">CONFIRM PASSWORD<input name="confirmPassword" type="password" autocomplete="new-password" required minlength="8" /></label>`;
+    submitLabel = "Create account";
+    switchButton = `<button class="text-link account-switch" type="button" data-mode="login">Already have an account? Sign in</button>`;
+    extraLink = "";
+  } else if (forgot) {
+    heading = "Forgot your password?";
+    intro = "Enter your email address and we will send you a link to reset your password.";
+    fields = `<label class="account-field account-field-wide">EMAIL ADDRESS<input name="email" type="email" autocomplete="email" required maxlength="254" /></label>`;
+    submitLabel = "Send reset link";
+    switchButton = `<button class="text-link account-switch" type="button" data-mode="login">Back to sign in</button>`;
+    extraLink = "";
+  } else if (reset) {
+    heading = "Reset your password";
+    intro = "Choose a new password.";
+    fields = `<label class="account-field account-field-wide">NEW PASSWORD<input name="password" type="password" autocomplete="new-password" required minlength="8" /></label>`
+      + `<label class="account-field account-field-wide">CONFIRM NEW PASSWORD<input name="confirmPassword" type="password" autocomplete="new-password" required minlength="8" /></label>`;
+    submitLabel = "Reset password";
+    switchButton = `<button class="text-link account-switch" type="button" data-mode="login">Back to sign in</button>`;
+    extraLink = "";
+  } else {
+    heading = "Welcome back.";
+    intro = checkoutRequested
+      ? "Sign in to continue to checkout. Your cart will be saved."
+      : "Sign in to manage your customer details and orders.";
+    fields = `<label class="account-field account-field-wide">EMAIL ADDRESS<input name="email" type="email" autocomplete="email" required maxlength="254" /></label>`
+      + `<label class="account-field account-field-wide">PASSWORD<input name="password" type="password" autocomplete="current-password" required minlength="8" /></label>`;
+    submitLabel = "Sign in";
+    switchButton = `<button class="text-link account-switch" type="button" data-mode="signup">New here? Create an account</button>`;
+    extraLink = `<button class="text-link account-switch" type="button" data-mode="forgot-password">Forgot password?</button>`;
+  }
+
+  content.innerHTML = `<form class="account-form" id="authForm" data-mode="${mode}">
     <span class="eyebrow muted-eyebrow account-field-wide">CUSTOMER ACCOUNT</span>
-    <h2>${signup ? "Create your account." : "Welcome back."}</h2>
-    <p>${checkoutRequested
-      ? (signup ? "Create an account or sign in to continue to checkout. Your cart will be saved." : "Sign in to continue to checkout. Your cart will be saved.")
-      : (signup ? "Add your delivery details so they are ready when you find something good." : "Sign in to manage your customer details and orders.")}</p>
+    <h2>${heading}</h2>
+    <p>${intro}</p>
     ${message ? `<p class="account-message error account-field-wide" role="alert">${escapeHTML(message)}</p>` : ""}
-    ${signup ? profileFields() : ""}
-    <label class="account-field account-field-wide">EMAIL ADDRESS<input name="email" type="email" autocomplete="email" required maxlength="254" /></label>
-    <label class="account-field account-field-wide">PASSWORD<input name="password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" required minlength="8" /></label>
-    ${signup ? `<label class="account-field account-field-wide">CONFIRM PASSWORD<input name="confirmPassword" type="password" autocomplete="new-password" required minlength="8" /></label>` : ""}
+    ${fields}
     <div class="turnstile-container account-field-wide" id="turnstileWidget"></div>
-    <button class="button button-dark" type="submit" disabled>${signup ? "Create account" : "Sign in"} <span>→</span></button>
-    <button class="text-link account-switch" type="button" data-mode="${signup ? "login" : "signup"}">${signup ? "Already have an account? Sign in" : "New here? Create an account"}</button>
+    <button class="button button-dark" type="submit" disabled>${submitLabel} <span>→</span></button>
+    ${switchButton}
+    ${extraLink}
   </form>`;
   setupTurnstile();
 }
@@ -235,6 +281,15 @@ async function initialize() {
     return;
   }
   try {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("recovery") === "1" || urlParams.get("type") === "recovery") {
+      recoveryTokenHash = urlParams.get("oauth_token_hash") || "";
+      if (!recoveryTokenHash) {
+        return renderAuth("reset-password", "No reset token was found in that link. Please request a new password reset.");
+      }
+      window.history.replaceState(null, "", `${window.location.pathname}`);
+      return renderAuth("reset-password");
+    }
     const { data, error } = await supabase.auth.getSession();
     if (error) throw error;
     if (!data.session) return renderAuth(checkoutRequested ? "signup" : "login");
@@ -281,12 +336,14 @@ content.addEventListener("submit", async event => {
   event.preventDefault();
   const form = event.target;
   const submit = form.querySelector('[type="submit"]');
-  if (form.id === "authForm" && form.dataset.mode === "signup") {
-    const password = form.elements.password;
-    const confirmPassword = form.elements.confirmPassword;
-    confirmPassword.setCustomValidity(
-      password.value === confirmPassword.value ? "" : "Passwords do not match."
-    );
+  if (form.id === "authForm") {
+    if (form.dataset.mode === "signup" || form.dataset.mode === "reset-password") {
+      const password = form.elements.password;
+      const confirmPassword = form.elements.confirmPassword;
+      confirmPassword.setCustomValidity(
+        password.value === confirmPassword.value ? "" : "Passwords do not match."
+      );
+    }
     if (!form.reportValidity()) return;
   }
   submit.disabled = true;
@@ -320,6 +377,33 @@ content.addEventListener("submit", async event => {
           return;
         }
         await renderAccount(data.user || data.session.user);
+      } else if (form.dataset.mode === "forgot-password") {
+        if (!turnstileToken) throw new Error("Complete the security check before sending the reset link.");
+        const checkoutSuffix = new URLSearchParams(window.location.search).get("checkout") === "1" ? "?checkout=1" : "";
+        const redirectTo = `${window.location.origin}/account.html?recovery=1${checkoutSuffix}`;
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+        if (error) throw error;
+        turnstileToken = "";
+        content.innerHTML = `<div class="account-confirmation"><h2>Reset link sent.</h2><p>If an account exists for that email address, you will receive a password reset link. Check your inbox (and spam folder).</p><button class="button button-dark" type="button" id="continueToSignIn">Continue to sign in <span>→</span></button></div>`;
+        return;
+      } else if (form.dataset.mode === "reset-password") {
+        if (!turnstileToken) throw new Error("Complete the security check before resetting your password.");
+        if (password !== String(values.get("confirmPassword"))) {
+          throw new Error("Passwords do not match.");
+        }
+        if (!recoveryTokenHash) throw new Error("No reset token was found. Please request a new password reset.");
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: recoveryTokenHash,
+          type: "recovery",
+        });
+        if (verifyError) throw verifyError;
+        const { error: updateError } = await supabase.auth.updateUser({ password });
+        if (updateError) throw updateError;
+        recoveryTokenHash = "";
+        turnstileToken = "";
+        window.history.replaceState(null, "", `${window.location.pathname}`);
+        renderAuth("login", "Your password has been reset. You can sign in with your new password.");
+        return;
       } else {
         if (!turnstileToken) throw new Error("Complete the security check before signing in.");
         const { data, error } = await supabase.auth.signInWithPassword({
