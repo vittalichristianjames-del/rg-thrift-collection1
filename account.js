@@ -381,7 +381,10 @@ content.addEventListener("submit", async event => {
         if (!turnstileToken) throw new Error("Complete the security check before sending the reset link.");
         const checkoutSuffix = new URLSearchParams(window.location.search).get("checkout") === "1" ? "?checkout=1" : "";
         const redirectTo = `${window.location.origin}/account.html?recovery=1${checkoutSuffix}`;
-        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo,
+          captchaToken: turnstileToken,
+        });
         if (error) throw error;
         turnstileToken = "";
         content.innerHTML = `<div class="account-confirmation"><h2>Reset link sent.</h2><p>If an account exists for that email address, you will receive a password reset link. Check your inbox (and spam folder).</p><button class="button button-dark" type="button" id="continueToSignIn">Continue to sign in <span>→</span></button></div>`;
