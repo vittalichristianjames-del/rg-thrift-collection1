@@ -327,6 +327,10 @@ content.addEventListener("click", async event => {
   const mode = event.target.closest("button[data-mode]");
   if (mode) return renderAuth(mode.dataset.mode);
   if (event.target.closest("#continueToSignIn")) return renderAuth("login");
+  if (event.target.closest("#openGmailButton")) {
+    window.open("https://mail.google.com/mail/", "_blank", "noopener,noreferrer");
+    return;
+  }
   if (event.target.id === "signOutButton") {
     const { error } = await supabase.auth.signOut();
     if (error) return renderAccount((await supabase.auth.getUser()).data.user, error.message);
@@ -398,7 +402,7 @@ content.addEventListener("submit", async event => {
         });
         if (error) throw error;
         turnstileToken = "";
-        content.innerHTML = `<div class="account-confirmation"><h2>Reset link sent.</h2><p>If an account exists for that email address, you will receive a password reset link. Check your inbox (and spam folder).</p><button class="button button-dark" type="button" id="continueToSignIn">Continue to sign in <span>→</span></button></div>`;
+        content.innerHTML = `<div class="account-confirmation"><h2>Reset link sent.</h2><p>If an account exists for that email address, you will receive a password reset link. Check your inbox (and spam folder).</p><button class="button button-dark" type="button" id="openGmailButton">Open Gmail <span>→</span></button></div>`;
         return;
       } else if (form.dataset.mode === "reset-password") {
         if (!turnstileToken) throw new Error("Complete the security check before resetting your password.");
