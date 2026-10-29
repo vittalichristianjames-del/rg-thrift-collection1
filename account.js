@@ -288,6 +288,9 @@ async function initialize() {
       urlParams.get("type") === "recovery" ||
       hashParams.get("type") === "recovery";
     if (isRecovery) {
+      // Sign out any session auto-detected from URL OAuth tokens so the
+      // user must set a new password instead of being logged in directly.
+      await supabase.auth.signOut();
       recoveryTokenHash =
         urlParams.get("oauth_token_hash") ||
         hashParams.get("oauth_token_hash") ||
