@@ -282,10 +282,23 @@ async function initialize() {
   }
   try {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("recovery") === "1" || urlParams.get("type") === "recovery") {
-      recoveryTokenHash = urlParams.get("oauth_token_hash") || "";
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const isRecovery =
+      urlParams.get("recovery") === "1" ||
+      urlParams.get("type") === "recovery" ||
+      hashParams.get("type") === "recovery";
+    if (isRecovery) {
+      recoveryTokenHash =
+        urlParams.get("oauth_token_hash") ||
+        hashParams.get("oauth_token_hash") ||
+        urlParams.get("oauth_token") ||
+        hashParams.get("oauth_token") ||
+        "";
       if (!recoveryTokenHash) {
-        return renderAuth("reset-password", "No reset token was found in that link. Please request a new password reset.");
+        return renderAuth(
+          "reset-password",
+          "No reset token was found in that link. The link may have expired or already been used. Please request a new password reset."
+        );
       }
       window.history.replaceState(null, "", `${window.location.pathname}`);
       return renderAuth("reset-password");
