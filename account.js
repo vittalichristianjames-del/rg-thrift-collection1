@@ -31,7 +31,6 @@ const supabase = config.url && config.anonKey
 const checkoutRequested = new URLSearchParams(window.location.search).get("checkout") === "1";
 let turnstileLoadPromise;
 let turnstileToken = "";
-let recoveryTokenHash = "";
 
 function loadTurnstile() {
   if (window.turnstile) return Promise.resolve(window.turnstile);
@@ -288,19 +287,15 @@ async function initialize() {
       urlParams.get("type") === "recovery" ||
       hashParams.get("type") === "recovery";
     if (isRecovery) {
-      // Sign out any session auto-detected from URL OAuth tokens so the
-      // user must set a new password instead of being logged in directly.
-      await supabase.auth.signOut();
-      recoveryTokenHash =
-        urlParams.get("oauth_token_hash") ||
-        hashParams.get("oauth_token_hash") ||
-        urlParams.get("oauth_token") ||
-        hashParams.get("oauth_token") ||
-        "";
-      if (!recoveryTokenHash) {
+      // Supabase verifies the recovery token server-side when the email link is
+      // clicked, then redirects here with an authenticated session. Detect that
+      // session so the user can set a new password without re-signing in.
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!sessionData.session) {
         return renderAuth(
           "reset-password",
-          "No reset token was found in that link. The link may have expired or already been used. Please request a new password reset."
+          "No valid reset session was found. The link may have expired or already been used. Please request a new password reset."
         );
       }
       window.history.replaceState(null, "", `${window.location.pathname}`);
@@ -410,15 +405,8 @@ content.addEventListener("submit", async event => {
         if (password !== String(values.get("confirmPassword"))) {
           throw new Error("Passwords do not match.");
         }
-        if (!recoveryTokenHash) throw new Error("No reset token was found. Please request a new password reset.");
-        const { error: verifyError } = await supabase.auth.verifyOtp({
-          token_hash: recoveryTokenHash,
-          type: "recovery",
-        });
-        if (verifyError) throw verifyError;
         const { error: updateError } = await supabase.auth.updateUser({ password });
         if (updateError) throw updateError;
-        recoveryTokenHash = "";
         turnstileToken = "";
         window.history.replaceState(null, "", `${window.location.pathname}`);
         renderAuth("login", "Your password has been reset. You can sign in with your new password.");
