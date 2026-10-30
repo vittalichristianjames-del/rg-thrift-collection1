@@ -803,25 +803,18 @@ async function renderSalesReport() {
   const totalRevenue = revenueOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
   const averageOrderValue = revenueOrders.length ? totalRevenue / revenueOrders.length : 0;
 
-  const itemCounts = {};
   const categoryRevenue = {};
-  filtered.forEach(order => {
-    (order.order_items || []).forEach(item => {
-      itemCounts[item.title] = (itemCounts[item.title] || 0) + Number(item.quantity || 1);
-    });
-  });
-  let topProduct = null;
-  let topCount = 0;
-  Object.entries(itemCounts).forEach(([title, count]) => {
-    if (count > topCount) { topCount = count; topProduct = title; }
-  });
-
+  let topCategory = null;
+  let topCategoryRevenue = 0;
   filtered.forEach(order => {
     (order.order_items || []).forEach(item => {
       const product = state.products.find(p => p.id === item.product_id) || {};
       const category = product.category || "Uncategorized";
       categoryRevenue[category] = (categoryRevenue[category] || 0) + Number(item.unit_price || 0) * Number(item.quantity || 1);
     });
+  });
+  Object.entries(categoryRevenue).forEach(([category, revenue]) => {
+    if (revenue > topCategoryRevenue) { topCategoryRevenue = revenue; topCategory = category; }
   });
 
   const dailyRevenue = {};
@@ -866,7 +859,7 @@ async function renderSalesReport() {
         <div class="stat-card"><span>TOTAL SALES</span><strong>${money(totalRevenue)}</strong></div>
         <div class="stat-card"><span>ORDERS</span><strong>${filtered.length}</strong></div>
         <div class="stat-card"><span>AVERAGE ORDER</span><strong>${money(averageOrderValue)}</strong></div>
-        <div class="stat-card"><span>TOP PRODUCT</span><strong style="font-size:16px">${topProduct ? escapeHTML(topProduct) : "—"}</strong></div>
+        <div class="stat-card"><span>TOP CATEGORY</span><strong style="font-size:16px">${topCategory ? escapeHTML(topCategory) : "—"}</strong></div>
       </div>
       <div class="report-grid">
         <section class="report-card">
