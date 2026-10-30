@@ -842,23 +842,32 @@ textarea:focus-visible {
 .sales-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 1rem;
 }
 .sales-table th, .sales-table td {
-  text-align: left;
-  padding: 9px 10px;
+  padding: 12px 10px;
   border-bottom: 1px solid var(--line);
 }
 .sales-table th {
-  font-size: 8px;
+  font-size: 0.85rem;
   letter-spacing: 0.08em;
   color: #85867e;
   font-weight: 500;
   text-transform: uppercase;
+  text-align: left;
+}
+.sales-table td {
+  text-align: left;
 }
 .sales-table td.units,
 .sales-table td.revenue {
   text-align: right;
+}
+.sales-table td.units {
+  width: 120px;
+}
+.sales-table tr:last-child td {
+  border-bottom: 0;
 }
 .sales-table tr:last-child td {
   border-bottom: 0;
