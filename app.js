@@ -807,7 +807,6 @@ async function renderSalesReport() {
   const revenueOrders = filtered.filter(order => includedStatuses.has(order.status));
   const totalRevenue = revenueOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
   const itemsSold = revenueOrders.reduce((sum, order) => sum + (order.order_items || []).reduce((s, item) => s + Number(item.quantity || 1), 0), 0);
-  const averageOrderValue = revenueOrders.length ? totalRevenue / revenueOrders.length : 0;
 
   const categoryBreakdown = {};
   revenueOrders.forEach(order => {
@@ -819,7 +818,9 @@ async function renderSalesReport() {
       categoryBreakdown[category].revenue += Number(item.unit_price || 0) * Number(item.quantity || 1);
     });
   });
+  const validCategories = new Set(["Tops", "Bottoms", "Outerwear", "Dresses"]);
   const categoryRows = Object.entries(categoryBreakdown)
+    .filter(([category]) => validCategories.has(category))
     .map(([category, data]) => ({ category, units: data.units, revenue: data.revenue }))
     .sort((a, b) => b.revenue - a.revenue);
 
@@ -856,7 +857,6 @@ async function renderSalesReport() {
       <div class="admin-stats">
         <div class="stat-card"><span>TOTAL SALES</span><strong>${money(totalRevenue)}</strong></div>
         <div class="stat-card"><span>ITEMS SOLD</span><strong>${itemsSold}</strong></div>
-        <div class="stat-card"><span>AVERAGE ORDER</span><strong>${money(averageOrderValue)}</strong></div>
       </div>
       ${empty ? `<div class="report-empty">No sales data for this period.</div>` : `
       <section class="report-card report-card-full">
