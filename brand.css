@@ -854,8 +854,10 @@ textarea:focus-visible {
   color: #85867e;
   font-weight: 500;
   text-transform: uppercase;
-  text-align: left;
 }
+.sales-table th:first-child { text-align: left; }
+.sales-table th:nth-child(2) { text-align: right; }
+.sales-table th:nth-child(3) { text-align: right; }
 .sales-table td {
   text-align: left;
 }
