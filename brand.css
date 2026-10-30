@@ -856,14 +856,14 @@ textarea:focus-visible {
   text-transform: uppercase;
 }
 .sales-table th:first-child { text-align: left; }
-.sales-table th:nth-child(2) { text-align: right; }
+.sales-table th:nth-child(2) { text-align: center; }
 .sales-table th:nth-child(3) { text-align: right; }
 .sales-table td {
   text-align: left;
 }
 .sales-table td.units {
   width: 140px;
-  text-align: right;
+  text-align: center;
 }
 .sales-table td.revenue {
   width: 180px;
