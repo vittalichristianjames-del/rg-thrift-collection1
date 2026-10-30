@@ -859,15 +859,14 @@ textarea:focus-visible {
 .sales-table td {
   text-align: left;
 }
-.sales-table td.units,
-.sales-table td.revenue {
+.sales-table td.units {
+  width: 140px;
   text-align: right;
 }
-.sales-table td.units {
-  width: 120px;
-}
-.sales-table tr:last-child td {
-  border-bottom: 0;
+.sales-table td.revenue {
+  width: 180px;
+  text-align: right;
+  padding-right: 20px;
 }
 .sales-table tr:last-child td {
   border-bottom: 0;
