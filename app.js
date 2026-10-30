@@ -806,18 +806,17 @@ async function renderSalesReport() {
   const includedStatuses = new Set(["Paid", "Delivered"]);
   const revenueOrders = filtered.filter(order => includedStatuses.has(order.status));
   const totalRevenue = revenueOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
-  const itemsSold = filtered.reduce((sum, order) => sum + (order.order_items || []).reduce((s, item) => s + Number(item.quantity || 1), 0), 0);
+  const itemsSold = revenueOrders.reduce((sum, order) => sum + (order.order_items || []).reduce((s, item) => s + Number(item.quantity || 1), 0), 0);
   const averageOrderValue = revenueOrders.length ? totalRevenue / revenueOrders.length : 0;
 
   const categoryBreakdown = {};
-  filtered.forEach(order => {
-    const isRevenueOrder = includedStatuses.has(order.status);
+  revenueOrders.forEach(order => {
     (order.order_items || []).forEach(item => {
       const product = state.products.find(p => p.id === item.product_id) || {};
       const category = product.category || "Uncategorized";
       if (!categoryBreakdown[category]) categoryBreakdown[category] = { units: 0, revenue: 0 };
       categoryBreakdown[category].units += Number(item.quantity || 1);
-      if (isRevenueOrder) categoryBreakdown[category].revenue += Number(item.unit_price || 0) * Number(item.quantity || 1);
+      categoryBreakdown[category].revenue += Number(item.unit_price || 0) * Number(item.quantity || 1);
     });
   });
   const categoryRows = Object.entries(categoryBreakdown)
