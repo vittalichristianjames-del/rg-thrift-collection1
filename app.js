@@ -886,17 +886,17 @@ async function renderSalesReport() {
       new Chart($("#statusChart").getContext("2d"), {
         type: "doughnut",
         data: { labels: statusLabels, datasets: [{ data: statusData }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
+        options: { responsive: false, plugins: { legend: { position: "bottom" } } }
       });
       new Chart($("#categoryChart").getContext("2d"), {
         type: "bar",
         data: { labels: categoryLabels, datasets: [{ label: "Revenue (₱)", data: categoryData }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: value => "₱" + value } } } }
+        options: { responsive: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: value => "₱" + value } } } }
       });
       new Chart($("#paymentChart").getContext("2d"), {
         type: "pie",
         data: { labels: paymentLabels, datasets: [{ data: paymentData }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
+        options: { responsive: false, plugins: { legend: { position: "bottom" } } }
       });
     } catch (error) {
       showToast("Charts could not be drawn: " + error.message);
