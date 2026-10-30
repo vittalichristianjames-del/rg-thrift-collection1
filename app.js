@@ -807,7 +807,7 @@ async function renderSalesReport() {
   const categoryBreakdown = {};
   revenueOrders.forEach(order => {
     (order.products || []).forEach(item => {
-      const product = state.products.find(p => p.id === item.product_id) || {};
+      const product = state.products.find(p => p.id === item.id || p.id === item.product_id) || {};
       const category = product.category || "Uncategorized";
       if (!categoryBreakdown[category]) categoryBreakdown[category] = { units: 0, revenue: 0 };
       categoryBreakdown[category].units += Number(item.quantity || 1);
@@ -824,9 +824,6 @@ async function renderSalesReport() {
   filtered.forEach(order => { statusCounts[order.status] = (statusCounts[order.status] || 0) + 1; });
   const statusLabels = Object.keys(statusCounts);
   const statusData = statusLabels.map(label => statusCounts[label]);
-
-  const categoryLabels = categoryRows.map(row => row.category);
-  const categoryData = categoryRows.map(row => row.revenue);
 
   const paymentCounts = {};
   filtered.forEach(order => { paymentCounts[order.payment_method] = (paymentCounts[order.payment_method] || 0) + 1; });
@@ -868,10 +865,6 @@ async function renderSalesReport() {
           <canvas id="statusChart" height="260"></canvas>
         </section>
         <section class="report-card">
-          <div class="admin-section-title"><h3>Revenue by category</h3></div>
-          <canvas id="categoryChart" height="260"></canvas>
-        </section>
-        <section class="report-card">
           <div class="admin-section-title"><h3>Payment method</h3></div>
           <canvas id="paymentChart" height="260"></canvas>
         </section>
@@ -887,11 +880,6 @@ async function renderSalesReport() {
         type: "doughnut",
         data: { labels: statusLabels, datasets: [{ data: statusData }] },
         options: { responsive: false, plugins: { legend: { position: "bottom" } } }
-      });
-      new Chart($("#categoryChart").getContext("2d"), {
-        type: "bar",
-        data: { labels: categoryLabels, datasets: [{ label: "Revenue (₱)", data: categoryData }] },
-        options: { responsive: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: value => "₱" + value } } } }
       });
       new Chart($("#paymentChart").getContext("2d"), {
         type: "pie",
