@@ -18,22 +18,8 @@ const supabase = backendConfig.url && backendConfig.anonKey
 const apiBaseUrl = String(backendConfig.apiBaseUrl || "").replace(/\/+$/, "");
 localStorage.removeItem("rewear-reservation-token");
 
-let Chart;
-async function loadChart() {
-  if (Chart) return Chart;
-  const module = await import("https://esm.sh/chart.js@4");
-  Chart = module.Chart ?? module.default ?? module;
-  const {
-    DoughnutController, PieController, BarController,
-    ArcElement, BarElement, PointElement, LineElement,
-    Legend, Tooltip, Title
-  } = module;
-  Chart.register(
-    DoughnutController, PieController, BarController,
-    ArcElement, BarElement, PointElement, LineElement,
-    Legend, Tooltip, Title
-  );
-  return Chart;
+function loadChart() {
+  return Promise.resolve(window.Chart);
 }
 
 const state = {
