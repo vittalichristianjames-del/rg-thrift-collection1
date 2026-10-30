@@ -23,6 +23,8 @@ async function loadChart() {
   if (Chart) return Chart;
   const module = await import("https://esm.sh/chart.js@4");
   Chart = module.Chart ?? module.default ?? module;
+  const { DoughnutController, PieController, BarController } = module;
+  Chart.register(DoughnutController, PieController, BarController);
   return Chart;
 }
 
