@@ -773,6 +773,63 @@ textarea:focus-visible {
   outline-offset: 3px;
 }
 
+.report-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.report-period-label {
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.report-period-select {
+  font: inherit;
+  font-size: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  color: var(--ink);
+  border-radius: 2px;
+  min-width: 120px;
+}
+
+.report-period-select:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 3px;
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.report-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.report-card.report-card-wide {
+  grid-column: 1 / -1;
+}
+
+.report-card canvas {
+  width: 100%;
+  height: 100%;
+  max-height: 240px;
+}
+
 @media (max-width: 600px) {
   .brand .brand-mark {
     font-size: 23px;
@@ -819,4 +876,7 @@ textarea:focus-visible {
   .product-image-viewer-next {
     right: 6px;
   }
+
+  .report-grid { grid-template-columns: 1fr; }
+  .report-header-actions { flex-direction: column; align-items: flex-start; gap: 8px; }
 }

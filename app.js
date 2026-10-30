@@ -18,6 +18,14 @@ const supabase = backendConfig.url && backendConfig.anonKey
 const apiBaseUrl = String(backendConfig.apiBaseUrl || "").replace(/\/+$/, "");
 localStorage.removeItem("rewear-reservation-token");
 
+let Chart;
+async function loadChart() {
+  if (Chart) return Chart;
+  const module = await import("https://esm.sh/chart.js@4");
+  Chart = module.Chart || module.default;
+  return Chart;
+}
+
 const state = {
   products: supabase ? [] : (JSON.parse(localStorage.getItem("rewear-products") || "null") || initialProducts)
     .map(product => ({ ...product, is_featured: product.is_featured ?? true })),
@@ -694,11 +702,15 @@ async function renderAdmin() {
   setDialog("adminPanel");
   $(".admin-top .eyebrow").textContent = "RG THRIFT COLLECTION · STORE DESK";
   if (supabase) {
+    const salesReport = document.createElement("button");
+    salesReport.id = "adminSalesReport";
+    salesReport.className = "button button-outline";
+    salesReport.textContent = "Sales report";
     const logout = document.createElement("button");
     logout.id = "adminLogout";
     logout.className = "button button-outline";
     logout.textContent = "Sign out";
-    $(".admin-top-actions").prepend(logout);
+    $(".admin-top-actions").prepend(salesReport, logout);
     document.querySelectorAll("[data-proof]").forEach(link => { link.textContent = "View receipt"; });
     const imageUrl = $("#productForm [name='image']");
     imageUrl.required = false;
@@ -770,6 +782,134 @@ async function renderAdmin() {
     }
   }
 }
+async function renderSalesReport() {
+  const Chart = await loadChart();
+  const period = $("#reportPeriod") ? $("#reportPeriod").value : "30";
+  const now = new Date();
+  let cutoff = null;
+  if (period === "7") cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  else if (period === "30") cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  else if (period === "90") cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+  const filtered = state.orders.filter(order => {
+    const placed = new Date(order.placedAt || order.placed_at);
+    if (Number.isNaN(placed.getTime())) return false;
+    if (!cutoff) return true;
+    return placed >= cutoff;
+  });
+
+  const excludedStatuses = new Set(["Cancelled", "Rejected"]);
+  const revenueOrders = filtered.filter(order => !excludedStatuses.has(order.status));
+  const totalRevenue = revenueOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+  const averageOrderValue = revenueOrders.length ? totalRevenue / revenueOrders.length : 0;
+
+  const itemCounts = {};
+  const categoryRevenue = {};
+  filtered.forEach(order => {
+    (order.order_items || []).forEach(item => {
+      itemCounts[item.title] = (itemCounts[item.title] || 0) + Number(item.quantity || 1);
+    });
+  });
+  let topProduct = null;
+  let topCount = 0;
+  Object.entries(itemCounts).forEach(([title, count]) => {
+    if (count > topCount) { topCount = count; topProduct = title; }
+  });
+
+  filtered.forEach(order => {
+    (order.order_items || []).forEach(item => {
+      const product = state.products.find(p => p.id === item.product_id) || {};
+      const category = product.category || "Uncategorized";
+      categoryRevenue[category] = (categoryRevenue[category] || 0) + Number(item.unit_price || 0) * Number(item.quantity || 1);
+    });
+  });
+
+  const dailyRevenue = {};
+  filtered.forEach(order => {
+    const placed = new Date(order.placedAt || order.placed_at);
+    if (Number.isNaN(placed.getTime())) return;
+    const day = placed.toISOString().slice(0, 10);
+    const amount = excludedStatuses.has(order.status) ? 0 : Number(order.total || 0);
+    dailyRevenue[day] = (dailyRevenue[day] || 0) + amount;
+  });
+  const days = Object.keys(dailyRevenue).sort();
+  const dailyLabels = days.map(day => {
+    const d = new Date(day + "T00:00:00");
+    return d.toLocaleDateString("en-PH", { month: "short", day: "numeric" });
+  });
+  const dailyData = days.map(day => dailyRevenue[day]);
+
+  const statusCounts = {};
+  filtered.forEach(order => { statusCounts[order.status] = (statusCounts[order.status] || 0) + 1; });
+  const statusLabels = Object.keys(statusCounts);
+  const statusData = statusLabels.map(label => statusCounts[label]);
+
+  const categoryLabels = Object.keys(categoryRevenue);
+  const categoryData = categoryLabels.map(label => categoryRevenue[label]);
+
+  $("#adminPanel").innerHTML = `
+    <header class="admin-top">
+      <div><span class="eyebrow muted-eyebrow">SALES REPORT</span><h2>Sales report</h2></div>
+      <div class="admin-top-actions report-header-actions">
+        <button class="button button-outline" id="reportBack">Back to dashboard</button>
+        <label class="report-period-label">PERIOD</label>
+        <select id="reportPeriod" class="report-period-select">
+          <option value="7" ${period === "7" ? "selected" : ""}>Last 7 days</option>
+          <option value="30" ${period === "30" ? "selected" : ""}>Last 30 days</option>
+          <option value="90" ${period === "90" ? "selected" : ""}>Last 90 days</option>
+          <option value="all" ${period === "all" ? "selected" : ""}>All time</option>
+        </select>
+      </div>
+    </header>
+    <div class="admin-content">
+      <div class="admin-stats">
+        <div class="stat-card"><span>TOTAL SALES</span><strong>${money(totalRevenue)}</strong></div>
+        <div class="stat-card"><span>ORDERS</span><strong>${filtered.length}</strong></div>
+        <div class="stat-card"><span>AVERAGE ORDER</span><strong>${money(averageOrderValue)}</strong></div>
+        <div class="stat-card"><span>TOP PRODUCT</span><strong style="font-size:16px">${topProduct ? escapeHTML(topProduct) : "—"}</strong></div>
+      </div>
+      <div class="report-grid">
+        <section class="report-card">
+          <div class="admin-section-title"><h3>Sales over time</h3></div>
+          <canvas id="revenueChart" height="220"></canvas>
+        </section>
+        <section class="report-card">
+          <div class="admin-section-title"><h3>Orders by status</h3></div>
+          <canvas id="statusChart" height="220"></canvas>
+        </section>
+        <section class="report-card report-card-wide">
+          <div class="admin-section-title"><h3>Revenue by category</h3></div>
+          <canvas id="categoryChart" height="220"></canvas>
+        </section>
+      </div>
+    </div>
+  `;
+  setDialog("adminPanel");
+
+  const revenueCtx = $("#revenueChart").getContext("2d");
+  const statusCtx = $("#statusChart").getContext("2d");
+  const categoryCtx = $("#categoryChart").getContext("2d");
+
+  new Chart(revenueCtx, {
+    type: "line",
+    data: { labels: dailyLabels, datasets: [{ label: "Sales (₱)", data: dailyData, borderWidth: 2, tension: 0.3, fill: true }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: value => "₱" + value } } } }
+  });
+
+  new Chart(statusCtx, {
+    type: "doughnut",
+    data: { labels: statusLabels, datasets: [{ data: statusData }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
+  });
+
+  new Chart(categoryCtx, {
+    type: "bar",
+    data: { labels: categoryLabels, datasets: [{ label: "Revenue (₱)", data: categoryData }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: value => "₱" + value } } } }
+  });
+  $("#reportPeriod").addEventListener("change", async () => { await renderSalesReport(); });
+}
+
 async function updateOrderStatus(orderId, status) {
   const order = state.orders.find(item => (item.databaseId || item.id) === orderId);
   if (!order) return;
@@ -918,6 +1058,8 @@ $("#adminPanel").addEventListener("click", async event => {
     }
     setDialog(null); state.editId = null;
   }
+  if (event.target.id === "adminSalesReport") { await renderSalesReport(); }
+  if (event.target.id === "reportBack") { renderAdmin(); }
   if (event.target.id === "cancelEdit") { state.editId = null; renderAdmin(); }
   if (event.target.id === "adminLogout") {
     const { error } = await supabase.auth.signOut();
