@@ -798,8 +798,8 @@ async function renderSalesReport() {
     return placed >= cutoff;
   });
 
-  const excludedStatuses = new Set(["Cancelled", "Rejected"]);
-  const revenueOrders = filtered.filter(order => !excludedStatuses.has(order.status));
+  const includedStatuses = new Set(["Paid", "Delivered"]);
+  const revenueOrders = filtered.filter(order => includedStatuses.has(order.status));
   const totalRevenue = revenueOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
   const averageOrderValue = revenueOrders.length ? totalRevenue / revenueOrders.length : 0;
 
@@ -829,7 +829,7 @@ async function renderSalesReport() {
     const placed = new Date(order.placedAt || order.placed_at);
     if (Number.isNaN(placed.getTime())) return;
     const day = placed.toISOString().slice(0, 10);
-    const amount = excludedStatuses.has(order.status) ? 0 : Number(order.total || 0);
+    const amount = includedStatuses.has(order.status) ? Number(order.total || 0) : 0;
     dailyRevenue[day] = (dailyRevenue[day] || 0) + amount;
   });
   const days = Object.keys(dailyRevenue).sort();
