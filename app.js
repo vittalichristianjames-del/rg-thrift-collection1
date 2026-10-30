@@ -783,7 +783,12 @@ async function renderAdmin() {
   }
 }
 async function renderSalesReport() {
-  const Chart = await loadChart();
+  let Chart;
+  try {
+    Chart = await loadChart();
+  } catch (error) {
+    showToast("Charts unavailable. Showing summary only.");
+  }
   const period = $("#reportPeriod") ? $("#reportPeriod").value : "30";
   const now = new Date();
   let cutoff = null;
@@ -801,44 +806,38 @@ async function renderSalesReport() {
   const includedStatuses = new Set(["Paid", "Delivered"]);
   const revenueOrders = filtered.filter(order => includedStatuses.has(order.status));
   const totalRevenue = revenueOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+  const itemsSold = filtered.reduce((sum, order) => sum + (order.order_items || []).reduce((s, item) => s + Number(item.quantity || 1), 0), 0);
   const averageOrderValue = revenueOrders.length ? totalRevenue / revenueOrders.length : 0;
 
-  const categoryRevenue = {};
-  let topCategory = null;
-  let topCategoryRevenue = 0;
+  const categoryBreakdown = {};
   filtered.forEach(order => {
+    const isRevenueOrder = includedStatuses.has(order.status);
     (order.order_items || []).forEach(item => {
       const product = state.products.find(p => p.id === item.product_id) || {};
       const category = product.category || "Uncategorized";
-      categoryRevenue[category] = (categoryRevenue[category] || 0) + Number(item.unit_price || 0) * Number(item.quantity || 1);
+      if (!categoryBreakdown[category]) categoryBreakdown[category] = { units: 0, revenue: 0 };
+      categoryBreakdown[category].units += Number(item.quantity || 1);
+      if (isRevenueOrder) categoryBreakdown[category].revenue += Number(item.unit_price || 0) * Number(item.quantity || 1);
     });
   });
-  Object.entries(categoryRevenue).forEach(([category, revenue]) => {
-    if (revenue > topCategoryRevenue) { topCategoryRevenue = revenue; topCategory = category; }
-  });
-
-  const dailyRevenue = {};
-  filtered.forEach(order => {
-    const placed = new Date(order.placedAt || order.placed_at);
-    if (Number.isNaN(placed.getTime())) return;
-    const day = placed.toISOString().slice(0, 10);
-    const amount = includedStatuses.has(order.status) ? Number(order.total || 0) : 0;
-    dailyRevenue[day] = (dailyRevenue[day] || 0) + amount;
-  });
-  const days = Object.keys(dailyRevenue).sort();
-  const dailyLabels = days.map(day => {
-    const d = new Date(day + "T00:00:00");
-    return d.toLocaleDateString("en-PH", { month: "short", day: "numeric" });
-  });
-  const dailyData = days.map(day => dailyRevenue[day]);
+  const categoryRows = Object.entries(categoryBreakdown)
+    .map(([category, data]) => ({ category, units: data.units, revenue: data.revenue }))
+    .sort((a, b) => b.revenue - a.revenue);
 
   const statusCounts = {};
   filtered.forEach(order => { statusCounts[order.status] = (statusCounts[order.status] || 0) + 1; });
   const statusLabels = Object.keys(statusCounts);
   const statusData = statusLabels.map(label => statusCounts[label]);
 
-  const categoryLabels = Object.keys(categoryRevenue);
-  const categoryData = categoryLabels.map(label => categoryRevenue[label]);
+  const categoryLabels = categoryRows.map(row => row.category);
+  const categoryData = categoryRows.map(row => row.revenue);
+
+  const paymentCounts = {};
+  filtered.forEach(order => { paymentCounts[order.payment_method] = (paymentCounts[order.payment_method] || 0) + 1; });
+  const paymentLabels = Object.keys(paymentCounts);
+  const paymentData = paymentLabels.map(label => paymentCounts[label]);
+
+  const empty = filtered.length === 0;
 
   $("#adminPanel").innerHTML = `
     <header class="admin-top">
@@ -857,49 +856,53 @@ async function renderSalesReport() {
     <div class="admin-content">
       <div class="admin-stats">
         <div class="stat-card"><span>TOTAL SALES</span><strong>${money(totalRevenue)}</strong></div>
-        <div class="stat-card"><span>ORDERS</span><strong>${filtered.length}</strong></div>
+        <div class="stat-card"><span>ITEMS SOLD</span><strong>${itemsSold}</strong></div>
         <div class="stat-card"><span>AVERAGE ORDER</span><strong>${money(averageOrderValue)}</strong></div>
-        <div class="stat-card"><span>TOP CATEGORY</span><strong style="font-size:16px">${topCategory ? escapeHTML(topCategory) : "—"}</strong></div>
       </div>
+      ${empty ? `<div class="report-empty">No sales data for this period.</div>` : `
+      <section class="report-card report-card-full">
+        <div class="admin-section-title"><h3>Sales breakdown by category</h3></div>
+        <table class="sales-table">
+          <thead><tr><th>Category</th><th>Units Sold</th><th>Revenue</th></tr></thead>
+          <tbody>${categoryRows.map(row => `<tr><td>${escapeHTML(row.category)}</td><td class="units">${row.units}</td><td class="revenue">${money(row.revenue)}</td></tr>`).join("")}</tbody>
+        </table>
+      </section>
       <div class="report-grid">
         <section class="report-card">
-          <div class="admin-section-title"><h3>Sales over time</h3></div>
-          <canvas id="revenueChart" height="220"></canvas>
+          <div class="admin-section-title"><h3>Orders by status</h3></div>
+          <canvas id="statusChart" height="260"></canvas>
         </section>
         <section class="report-card">
-          <div class="admin-section-title"><h3>Orders by status</h3></div>
-          <canvas id="statusChart" height="220"></canvas>
-        </section>
-        <section class="report-card report-card-wide">
           <div class="admin-section-title"><h3>Revenue by category</h3></div>
-          <canvas id="categoryChart" height="220"></canvas>
+          <canvas id="categoryChart" height="260"></canvas>
+        </section>
+        <section class="report-card">
+          <div class="admin-section-title"><h3>Payment method</h3></div>
+          <canvas id="paymentChart" height="260"></canvas>
         </section>
       </div>
+      `}
     </div>
   `;
   setDialog("adminPanel");
 
-  const revenueCtx = $("#revenueChart").getContext("2d");
-  const statusCtx = $("#statusChart").getContext("2d");
-  const categoryCtx = $("#categoryChart").getContext("2d");
-
-  new Chart(revenueCtx, {
-    type: "line",
-    data: { labels: dailyLabels, datasets: [{ label: "Sales (₱)", data: dailyData, borderWidth: 2, tension: 0.3, fill: true }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: value => "₱" + value } } } }
-  });
-
-  new Chart(statusCtx, {
-    type: "doughnut",
-    data: { labels: statusLabels, datasets: [{ data: statusData }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
-  });
-
-  new Chart(categoryCtx, {
-    type: "bar",
-    data: { labels: categoryLabels, datasets: [{ label: "Revenue (₱)", data: categoryData }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: value => "₱" + value } } } }
-  });
+  if (!empty && Chart) {
+    new Chart($("#statusChart").getContext("2d"), {
+      type: "doughnut",
+      data: { labels: statusLabels, datasets: [{ data: statusData }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
+    });
+    new Chart($("#categoryChart").getContext("2d"), {
+      type: "bar",
+      data: { labels: categoryLabels, datasets: [{ label: "Revenue (₱)", data: categoryData }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: value => "₱" + value } } } }
+    });
+    new Chart($("#paymentChart").getContext("2d"), {
+      type: "pie",
+      data: { labels: paymentLabels, datasets: [{ data: paymentData }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } }
+    });
+  }
   $("#reportPeriod").addEventListener("change", async () => { await renderSalesReport(); });
 }
 
