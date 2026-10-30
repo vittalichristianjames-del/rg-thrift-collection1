@@ -326,7 +326,10 @@ async function initialize() {
 content.addEventListener("click", async event => {
   const mode = event.target.closest("button[data-mode]");
   if (mode) return renderAuth(mode.dataset.mode);
-  if (event.target.closest("#continueToSignIn")) return renderAuth("login");
+  if (event.target.closest("#continueToSignIn")) {
+    window.open("https://mail.google.com/mail/", "_blank", "noopener,noreferrer");
+    return;
+  }
   if (event.target.closest("#openGmailButton")) {
     window.open("https://mail.google.com/mail/", "_blank", "noopener,noreferrer");
     return;
@@ -384,7 +387,7 @@ content.addEventListener("submit", async event => {
         if (error) throw error;
         turnstileToken = "";
         if (!data.session) {
-          content.innerHTML = `<div class="account-confirmation"><h2>Confirm your account.</h2><p>Use the confirmation link sent to your email, then sign in to continue to checkout. Your cart will be saved.</p><button class="button button-dark" type="button" id="continueToSignIn">Continue to sign in <span>→</span></button></div>`;
+          content.innerHTML = `<div class="account-confirmation"><h2>Confirm your account.</h2><p>Use the confirmation link sent to your email, then sign in to continue to checkout. Your cart will be saved.</p><button class="button button-dark" type="button" id="continueToSignIn">Open Gmail <span>→</span></button></div>`;
           return;
         }
         if (checkoutRequested) {
