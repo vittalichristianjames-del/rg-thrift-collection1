@@ -826,7 +826,7 @@ async function renderSalesReport() {
   const statusData = statusLabels.map(label => statusCounts[label]);
 
   const paymentCounts = {};
-  filtered.forEach(order => { paymentCounts[order.payment_method] = (paymentCounts[order.payment_method] || 0) + 1; });
+  filtered.forEach(order => { paymentCounts[order.payment || order.payment_method] = (paymentCounts[order.payment || order.payment_method] || 0) + 1; });
   const paymentLabels = Object.keys(paymentCounts);
   const paymentData = paymentLabels.map(label => paymentCounts[label]);
 
